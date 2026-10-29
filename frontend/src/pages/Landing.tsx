@@ -30,12 +30,20 @@ export default function Landing() {
             <span>Privacy-First</span>
           </div>
         </div>
-        <button
-          onClick={() => navigate('/import')}
-          className="bg-gradient-to-r from-ghost-cyan to-ghost-violet text-black px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity"
-        >
-          Start Exploring
-        </button>
+        <div className="flex flex-wrap gap-4 justify-center">
+          <button
+            onClick={() => navigate('/import')}
+            className="bg-gradient-to-r from-ghost-cyan to-ghost-violet text-black px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity"
+          >
+            Start Exploring
+          </button>
+          <button
+            onClick={() => navigate('/settings')}
+            className="border border-gray-600 px-8 py-3 rounded-lg font-semibold text-gray-200 hover:border-ghost-cyan hover:text-ghost-cyan transition-colors"
+          >
+            Settings
+          </button>
+        </div>
       </div>
     </div>
   )

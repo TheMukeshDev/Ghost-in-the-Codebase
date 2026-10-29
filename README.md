@@ -70,6 +70,18 @@ Browsers cannot read an arbitrary filesystem path typed into a text box, so the 
 
 A selected folder is packaged into a `.zip` in the browser and sent to the local Flask backend, which validates it and runs the analysis pipeline.
 
+## Deployment
+
+The frontend is a static single-page app and can be hosted on Vercel. Client-side routes are handled by the rewrite in `frontend/vercel.json`.
+
+Because the analysis backend is a Flask server, the Vercel deployment needs a reachable backend:
+
+1. Deploy `backend/` to a host that runs Python (Render, Railway, Fly.io, etc.).
+2. Set `VITE_API_URL` in the Vercel project to that backend URL (for example `https://ghost-api.example.com`).
+3. Set `FRONTEND_URL` on the backend to the Vercel origin (comma-separate multiple origins).
+
+Without a backend, the UI loads but imports cannot be analyzed.
+
 ## Security
 
 - Path traversal protection for extracted archives

@@ -46,7 +46,7 @@ def get_report(repo_id):
             'analysis_type': 'deterministic'
         }
         return jsonify(report)
-    except:
+    except Exception:
         return jsonify({'error': 'Failed to generate report'}), 500
 
 @bp.route('/<repo_id>/dependencies', methods=['GET'])
@@ -60,8 +60,8 @@ def get_dependencies(repo_id):
         analyzer = RepoAnalyzer(repo['path'])
         tree = analyzer.build_tree()
         for f in tree:
-            if f['name'] in ['requirements.txt', 'package.json', 'pyproject.toml']:
+            if f.get('name') in ['requirements.txt', 'package.json', 'pyproject.toml']:
                 deps.append({'file': f['path'], 'type': 'manifest'})
         return jsonify({'dependencies': deps})
-    except:
+    except Exception:
         return jsonify({'dependencies': []})

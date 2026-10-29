@@ -10,7 +10,7 @@ class AIService:
         try:
             resp = requests.get(f'{self.base_url}/api/tags', timeout=2)
             return resp.status_code == 200
-        except:
+        except Exception:
             return False
     
     def ask(self, question, context=''):

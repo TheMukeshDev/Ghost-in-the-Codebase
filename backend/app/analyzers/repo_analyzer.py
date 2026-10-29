@@ -4,41 +4,50 @@ from pathlib import Path
 from collections import defaultdict
 
 class RepoAnalyzer:
-    IGNORE_DIRS = {'.git', '__pycache__', 'node_modules', 'venv', '.venv', 'env', 'dist', 'build', '.next'}
+    IGNORE_DIRS = {
+        '.git', '__pycache__', 'node_modules', 'venv', '.venv', 'env',
+        'dist', 'build', '.next', '__MACOSX', '.idea', '.vscode', 'coverage',
+    }
     IGNORE_FILES = {'.DS_Store', 'package-lock.json', 'yarn.lock', 'poetry.lock'}
-    
+    MAX_TREE_ENTRIES = 20000
+
     def __init__(self, repo_path):
         self.repo_path = Path(repo_path)
-    
+
     def build_tree(self):
         tree = []
-        for root, dirs, files in os.walk(self.repo_path):
+        for root, dirs, files in os.walk(self.repo_path, onerror=lambda _error: None):
             dirs[:] = [d for d in dirs if d not in self.IGNORE_DIRS]
-            rel_root = os.path.relpath(root, self.repo_path)
-            if rel_root == '.':
-                rel_root = ''
             for file in files:
                 if file in self.IGNORE_FILES:
                     continue
                 full_path = os.path.join(root, file)
-                rel_path = os.path.relpath(full_path, self.repo_path)
+                try:
+                    rel_path = os.path.relpath(full_path, self.repo_path)
+                    size = os.path.getsize(full_path)
+                except (OSError, ValueError):
+                    continue
                 tree.append({
                     'path': rel_path,
                     'name': file,
                     'type': 'file',
-                    'size': os.path.getsize(full_path)
+                    'size': size,
                 })
+                if len(tree) >= self.MAX_TREE_ENTRIES:
+                    return tree
         return tree
-    
-    def detect_languages(self):
-        tree = self.build_tree()
+
+    def _detect_languages(self, tree):
         exts = defaultdict(int)
-        for f in tree:
-            ext = Path(f['name']).suffix.lower()
+        for entry in tree:
+            ext = Path(entry['name']).suffix.lower()
             if ext:
                 exts[ext] += 1
         return dict(exts)
-    
+
+    def detect_languages(self):
+        return self._detect_languages(self.build_tree())
+
     def analyze_python(self, file_path):
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -55,24 +64,25 @@ class RepoAnalyzer:
                 elif isinstance(node, (ast.Import, ast.ImportFrom)):
                     imports.append(ast.unparse(node))
             return {'functions': functions, 'classes': classes, 'imports': imports}
-        except:
+        except Exception:
             return {'functions': [], 'classes': [], 'imports': []}
-    
+
     def get_overview(self):
         tree = self.build_tree()
-        languages = self.detect_languages()
+        languages = self._detect_languages(tree)
         readme = None
-        for f in tree:
-            if f['name'].lower().startswith('readme'):
+        for entry in tree:
+            if entry['name'].lower().startswith('readme'):
                 try:
-                    readme_path = self.repo_path / f['path']
+                    readme_path = self.repo_path / entry['path']
                     with open(readme_path, 'r', encoding='utf-8', errors='ignore') as rf:
                         readme = rf.read()[:500]
-                except:
-                    pass
+                    break
+                except Exception:
+                    continue
         return {
-            'file_count': len([f for f in tree if f['type'] == 'file']),
+            'file_count': len([entry for entry in tree if entry['type'] == 'file']),
             'languages': languages,
             'has_readme': readme is not None,
-            'readme_preview': readme
+            'readme_preview': readme,
         }

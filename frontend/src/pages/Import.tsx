@@ -2,6 +2,8 @@ import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AlertCircle, FileArchive, FolderOpen, Loader2, UploadCloud } from 'lucide-react'
 import api from '../api/client'
+import { getErrorMessage } from '../lib/errors'
+import { asRecord, asString } from '../lib/safe'
 
 const MAX_UPLOAD_MB = 100
 const SKIP_DIRS = new Set([
@@ -20,6 +22,9 @@ const SKIP_DIRS = new Set([
 type SelectedFile = { file: File; path: string }
 type RelativeFile = File & { webkitRelativePath?: string }
 
+const backendConfigured = Boolean(import.meta.env.VITE_API_URL?.trim())
+const showBackendWarning = import.meta.env.PROD && !backendConfigured
+
 const relativePathOf = (file: File) => (file as RelativeFile).webkitRelativePath || file.name
 
 const isSkipped = (path: string) =>
@@ -33,24 +38,34 @@ export default function Import() {
   const [error, setError] = useState('')
   const [selection, setSelection] = useState('')
   const [dragging, setDragging] = useState(false)
+  const busyRef = useRef(false)
   const folderInputRef = useRef<HTMLInputElement>(null)
   const zipInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
 
-  const postArchive = async (archive: File, label: string) => {
+  const begin = () => {
+    if (busyRef.current) return false
+    busyRef.current = true
     setLoading(true)
     setError('')
+    return true
+  }
+
+  const end = () => {
+    busyRef.current = false
+    setLoading(false)
+  }
+
+  const postArchive = async (archive: File, label: string) => {
     setSelection(label)
-    try {
-      const form = new FormData()
-      form.append('file', archive)
-      const resp = await api.post('/repositories/upload', form)
-      navigate(`/dashboard/${resp.data.id}`)
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Upload failed')
-    } finally {
-      setLoading(false)
+    const form = new FormData()
+    form.append('file', archive)
+    const resp = await api.post('/repositories/upload', form)
+    const id = asString(asRecord(resp.data).id)
+    if (!id) {
+      throw new Error('The server did not return a repository id. Make sure the Flask backend is running.')
     }
+    navigate(`/dashboard/${encodeURIComponent(id)}`)
   }
 
   const uploadZip = async (file: File) => {
@@ -62,7 +77,14 @@ export default function Import() {
       setError(`Archive is too large (max ${MAX_UPLOAD_MB} MB).`)
       return
     }
-    await postArchive(file, file.name)
+    if (!begin()) return
+    try {
+      await postArchive(file, file.name)
+    } catch (err) {
+      setError(getErrorMessage(err, 'Upload failed.'))
+    } finally {
+      end()
+    }
   }
 
   const uploadFolder = async (selected: SelectedFile[]) => {
@@ -78,8 +100,7 @@ export default function Import() {
       setError(`Folder is too large (max ${MAX_UPLOAD_MB} MB).`)
       return
     }
-    setLoading(true)
-    setError('')
+    if (!begin()) return
     try {
       const { default: JSZip } = await import('jszip')
       const zip = new JSZip()
@@ -92,17 +113,21 @@ export default function Import() {
         new File([blob], `${root}.zip`, { type: 'application/zip' }),
         `${usable.length} files`,
       )
-    } catch {
-      setError('Could not package the selected folder.')
-      setLoading(false)
+    } catch (err) {
+      setError(getErrorMessage(err, 'Could not package the selected folder.'))
+    } finally {
+      end()
     }
   }
 
   const handleFolderChange = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
-    if (files.length) {
+    if (!files.length) return
+    try {
       void uploadFolder(files.map((file) => ({ file, path: relativePathOf(file) })))
+    } catch (err) {
+      setError(getErrorMessage(err, 'Could not read the selected folder.'))
     }
   }
 
@@ -138,29 +163,38 @@ export default function Import() {
   const handleDrop = async (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     setDragging(false)
-    const items = Array.from(event.dataTransfer.items ?? [])
-    const entries: any[] = []
-    for (const item of items) {
-      const entry = (item as any).webkitGetAsEntry?.()
-      if (entry) entries.push(entry)
-    }
+    if (busyRef.current) return
+    try {
+      const items = Array.from(event.dataTransfer.items ?? [])
+      const entries: any[] = []
+      for (const item of items) {
+        const entry = (item as any).webkitGetAsEntry?.()
+        if (entry) entries.push(entry)
+      }
 
-    if (entries.length === 1 && entries[0].isFile) {
-      const file = await new Promise<File>((resolve, reject) => entries[0].file(resolve, reject))
-      await uploadZip(file)
-      return
-    }
+      if (entries.length === 1 && entries[0].isFile) {
+        const file = await new Promise<File>((resolve, reject) => entries[0].file(resolve, reject))
+        await uploadZip(file)
+        return
+      }
 
-    const selected: SelectedFile[] = []
-    for (const entry of entries) await collectEntry(entry, '', selected)
-    if (selected.length) {
-      await uploadFolder(selected)
-    } else if (event.dataTransfer.files.length) {
-      const file = event.dataTransfer.files[0]
-      if (file.name.toLowerCase().endsWith('.zip')) await uploadZip(file)
-      else setError('Drop a repository folder or a .zip archive.')
-    } else {
+      const selected: SelectedFile[] = []
+      for (const entry of entries) await collectEntry(entry, '', selected)
+      if (selected.length) {
+        await uploadFolder(selected)
+        return
+      }
+
+      if (event.dataTransfer.files.length) {
+        const file = event.dataTransfer.files[0]
+        if (file.name.toLowerCase().endsWith('.zip')) await uploadZip(file)
+        else setError('Drop a repository folder or a .zip archive.')
+        return
+      }
+
       setError('Drop a repository folder or a .zip archive.')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Could not read the dropped item.'))
     }
   }
 
@@ -173,13 +207,29 @@ export default function Import() {
           <p className="text-gray-400">Choose a folder from your computer or upload a .zip archive</p>
         </div>
 
+        {showBackendWarning && (
+          <div
+            role="status"
+            className="mb-4 rounded border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+          >
+            This deployment has no backend URL configured. Set{' '}
+            <code className="font-mono">VITE_API_URL</code> to a running Flask backend, or run it
+            locally at http://localhost:5000.
+          </div>
+        )}
+
         <div
+          onDragEnter={(event) => {
+            event.preventDefault()
+            if (!busyRef.current) setDragging(true)
+          }}
           onDragOver={(event) => {
             event.preventDefault()
-            setDragging(true)
+            if (!busyRef.current) setDragging(true)
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
+          aria-busy={loading}
           className={`rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
             dragging ? 'border-ghost-cyan bg-ghost-cyan/5' : 'border-gray-700 bg-ghost-midnight'
           }`}
@@ -222,24 +272,34 @@ export default function Import() {
             className="hidden"
             onChange={handleZipChange}
           />
+
+          <p className="text-xs text-gray-500 mt-6">
+            The analysis backend must be running at http://localhost:5000.
+          </p>
         </div>
 
-        {loading && (
-          <div className="mt-4 flex items-center gap-2 text-ghost-cyan text-sm">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Analyzing {selection || 'repository'}…</span>
-          </div>
-        )}
+        <div aria-live="polite">
+          {loading && (
+            <div className="mt-4 flex items-center gap-2 text-ghost-cyan text-sm">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Analyzing {selection || 'repository'}…</span>
+            </div>
+          )}
 
-        {error && (
-          <div className="mt-4 flex items-center gap-2 text-red-400">
-            <AlertCircle className="w-4 h-4" />
-            <span className="text-sm">{error}</span>
-          </div>
-        )}
+          {error && (
+            <div role="alert" className="mt-4 flex items-center gap-2 text-red-400">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span className="text-sm">{error}</span>
+            </div>
+          )}
+        </div>
 
         <div className="mt-6 text-center">
-          <button onClick={() => navigate('/')} className="text-gray-400 hover:text-ghost-cyan">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="text-gray-400 hover:text-ghost-cyan"
+          >
             Back to Home
           </button>
         </div>
