@@ -12,10 +12,12 @@ export function getErrorMessage(error: unknown, fallback: string): string {
       if (text && !text.startsWith('<')) return text.slice(0, 300)
     }
     if (!error.response) {
-      if (error.code === 'ECONNABORTED') {
-        return 'The request timed out. The repository may be too large.'
-      }
-      return 'Cannot reach the analysis backend. Make sure it is running (locally at http://localhost:5000) and try again.'
+    if (error.code === 'ECONNABORTED') {
+      return 'The request timed out. The repository may be too large or the backend may still be waking up.'
+    }
+    return import.meta.env.PROD
+      ? 'Cannot reach the analysis backend. It may be waking up or temporarily unavailable; try again in a moment.'
+      : 'Cannot reach the analysis backend. Make sure it is running (locally at http://localhost:5000) and try again.'
     }
     if (error.response.status === 413) return 'The upload is too large for the server.'
     if (error.response.status === 404) return 'The repository or endpoint could not be found.'

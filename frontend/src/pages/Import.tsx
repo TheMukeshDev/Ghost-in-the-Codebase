@@ -274,7 +274,9 @@ export default function Import() {
           />
 
           <p className="text-xs text-gray-500 mt-6">
-            The analysis backend must be running at http://localhost:5000.
+            {backendConfigured
+              ? 'Uploads are analyzed by the hosted backend.'
+              : 'The analysis backend must be running at http://localhost:5000.'}
           </p>
         </div>
 
