@@ -18,7 +18,7 @@ export default function Import() {
     setError('')
     try {
       const resp = await api.post('/repositories/import', { path })
-      navigate(/dashboard/)
+      navigate(`/dashboard/${resp.data.id}`)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Import failed')
     } finally {

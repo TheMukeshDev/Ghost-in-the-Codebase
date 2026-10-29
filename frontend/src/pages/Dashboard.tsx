@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FileText, Network, BookOpen, MessageSquare, GitBranch, Settings as SettingsIcon, Trash2 } from 'lucide-react'
+import { FileText, Network, BookOpen, MessageSquare, Settings as SettingsIcon, Trash2 } from 'lucide-react'
 import api from '../api/client'
 
 export default function Dashboard() {
@@ -22,8 +22,8 @@ export default function Dashboard() {
     try {
       const [reposResp, treeResp, reportResp] = await Promise.all([
         api.get('/repositories'),
-        api.get(/repositories//tree),
-        api.get(/repositories//report)
+        api.get(`/repositories/${id}/tree`),
+        api.get(`/repositories/${id}/report`)
       ])
       const r = reposResp.data.repositories.find((x: any) => x.id === id)
       setRepo(r)
@@ -38,7 +38,7 @@ export default function Dashboard() {
     if (!question) return
     setAsking(true)
     try {
-      const resp = await api.post(/repositories//ask, { question })
+      const resp = await api.post(`/repositories/${id}/ask`, { question })
       setAnswer(resp.data)
     } catch (e) {
       setAnswer({ answer: 'Error asking question', source: 'error' })
@@ -49,7 +49,7 @@ export default function Dashboard() {
 
   const deleteRepo = async () => {
     if (confirm('Delete this repository?')) {
-      await api.delete(/repositories/)
+      await api.delete(`/repositories/${id}`)
       navigate('/')
     }
   }
@@ -76,19 +76,19 @@ export default function Dashboard() {
       <div className="flex">
         <aside className="w-64 border-r border-gray-800 bg-ghost-midnight h-[calc(100vh-73px)] overflow-y-auto">
           <nav className="p-4 space-y-2">
-            <button onClick={() => setActiveTab('overview')} className={w-full flex items-center gap-2 px-3 py-2 rounded }>
+            <button onClick={() => setActiveTab('overview')} className={`w-full flex items-center gap-2 px-3 py-2 rounded ${activeTab === 'overview' ? 'bg-ghost-cyan/10 text-ghost-cyan' : 'text-gray-400 hover:text-ghost-cyan'}`}>
               <FileText className="w-4 h-4" /> Overview
             </button>
-            <button onClick={() => setActiveTab('files')} className={w-full flex items-center gap-2 px-3 py-2 rounded }>
+            <button onClick={() => setActiveTab('files')} className={`w-full flex items-center gap-2 px-3 py-2 rounded ${activeTab === 'files' ? 'bg-ghost-cyan/10 text-ghost-cyan' : 'text-gray-400 hover:text-ghost-cyan'}`}>
               <FileText className="w-4 h-4" /> Files ({tree.length})
             </button>
-            <button onClick={() => setActiveTab('ghost-story')} className={w-full flex items-center gap-2 px-3 py-2 rounded }>
+            <button onClick={() => setActiveTab('ghost-story')} className={`w-full flex items-center gap-2 px-3 py-2 rounded ${activeTab === 'ghost-story' ? 'bg-ghost-cyan/10 text-ghost-cyan' : 'text-gray-400 hover:text-ghost-cyan'}`}>
               <BookOpen className="w-4 h-4" /> Ghost Story
             </button>
-            <button onClick={() => setActiveTab('ask')} className={w-full flex items-center gap-2 px-3 py-2 rounded }>
+            <button onClick={() => setActiveTab('ask')} className={`w-full flex items-center gap-2 px-3 py-2 rounded ${activeTab === 'ask' ? 'bg-ghost-cyan/10 text-ghost-cyan' : 'text-gray-400 hover:text-ghost-cyan'}`}>
               <MessageSquare className="w-4 h-4" /> Ask the Ghost
             </button>
-            <button onClick={() => setActiveTab('dependencies')} className={w-full flex items-center gap-2 px-3 py-2 rounded }>
+            <button onClick={() => setActiveTab('dependencies')} className={`w-full flex items-center gap-2 px-3 py-2 rounded ${activeTab === 'dependencies' ? 'bg-ghost-cyan/10 text-ghost-cyan' : 'text-gray-400 hover:text-ghost-cyan'}`}>
               <Network className="w-4 h-4" /> Dependencies
             </button>
           </nav>
