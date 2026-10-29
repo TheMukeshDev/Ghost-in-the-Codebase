@@ -2,8 +2,6 @@ from flask import Blueprint, request, jsonify
 import os
 import uuid
 import zipfile
-import shutil
-from pathlib import Path
 from app.security.validator import SecurityValidator
 from app.services.storage import Storage
 from app.analyzers.repo_analyzer import RepoAnalyzer
@@ -13,32 +11,6 @@ storage = Storage()
 
 UPLOAD_DIR = './uploads'
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-@bp.route('/import', methods=['POST'])
-def import_repo():
-    data = request.get_json(silent=True) or {}
-    repo_path = data.get('path')
-    
-    if not repo_path or not os.path.exists(repo_path):
-        return jsonify({'error': 'Invalid path'}), 400
-    
-    try:
-        repo_id = str(uuid.uuid4())
-        analyzer = RepoAnalyzer(repo_path)
-        tree = analyzer.build_tree()
-        overview = analyzer.get_overview()
-        storage.add_repository(repo_id, os.path.basename(repo_path), repo_path, {
-            'overview': overview,
-            'file_count': len(tree)
-        })
-        return jsonify({
-            'id': repo_id,
-            'name': os.path.basename(repo_path),
-            'tree': tree,
-            'overview': overview
-        })
-    except Exception as e:
-        return jsonify({'error': 'Import failed'}), 500
 
 @bp.route('', methods=['GET'])
 def list_repos():

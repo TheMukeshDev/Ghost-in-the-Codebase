@@ -1,6 +1,6 @@
 # Ghost in the Codebase
 
-> \"Every Codebase Has a Story. Some Are Waiting to Be Resurrected.\"
+> "Every Codebase Has a Story. Some Are Waiting to Be Resurrected."
 
 A spooky but genuinely useful local-first AI assistant that explores unfamiliar or abandoned open-source repositories and brings their forgotten code back to life.
 
@@ -31,7 +31,7 @@ A spooky but genuinely useful local-first AI assistant that explores unfamiliar 
 
 ### Backend Setup
 
-`ash
+```bash
 cd backend
 python -m venv venv
 venv\Scripts\activate  # Windows
@@ -39,30 +39,40 @@ venv\Scripts\activate  # Windows
 pip install -r requirements.txt
 cp ../.env.example ../.env
 python app.py
-`
+```
 
 Backend runs on http://localhost:5000
 
 ### Frontend Setup
 
-`ash
+```bash
 cd frontend
 npm install
 npm run dev
-`
+```
 
 Frontend runs on http://localhost:5173
 
 ### Ollama Setup (Optional)
 
-`ash
+```bash
 ollama pull qwen2.5:3b
 ollama serve
-`
+```
+
+## Importing a Repository
+
+Browsers cannot read an arbitrary filesystem path typed into a text box, so the import screen uses browser-supported selection instead:
+
+- **Browse Folder** - pick a repository directory with the HTML directory picker
+- **Upload .zip** - upload a zipped repository
+- **Drag & drop** - drop a folder or `.zip` archive onto the import zone
+
+A selected folder is packaged into a `.zip` in the browser and sent to the local Flask backend, which validates it and runs the analysis pipeline.
 
 ## Security
 
-- Path traversal protection
+- Path traversal protection for extracted archives
 - No code execution
 - Local-first by default
 - CORS restricted

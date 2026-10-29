@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify
 from app.services.storage import Storage
 from app.analyzers.repo_analyzer import RepoAnalyzer
 

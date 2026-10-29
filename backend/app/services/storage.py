@@ -4,8 +4,8 @@ import os
 from datetime import datetime
 
 class Storage:
-    def __init__(self, db_path='ghost.db'):
-        self.db_path = db_path
+    def __init__(self, db_path=None):
+        self.db_path = db_path or os.environ.get('DATABASE_PATH', 'ghost.db')
         self.init_db()
     
     def init_db(self):
