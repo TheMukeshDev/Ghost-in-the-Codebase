@@ -82,6 +82,20 @@ Because the analysis backend is a Flask server, the Vercel deployment needs a re
 
 Without a backend, the UI loads but imports cannot be analyzed.
 
+### Render (one click)
+
+This repository includes `render.yaml`. Open the Blueprint deploy link, sign in to Render, and apply it:
+
+https://render.com/deploy?repo=https://github.com/TheMukeshDev/Ghost-in-the-Codebase
+
+After the service is live, copy its URL (for example `https://ghost-in-the-codebase-api.onrender.com`) and set `VITE_API_URL` in Vercel, then redeploy the frontend.
+
+Render's free plan uses ephemeral storage, so uploaded repositories and the SQLite database reset when the service restarts. Attach a persistent disk (paid) and point `DATABASE_PATH` and `UPLOAD_DIR` at the mount path if imports need to survive restarts.
+
+### Railway, Fly.io, or Docker
+
+`backend/Procfile` and `backend/Dockerfile` are included. Deploy the `backend/` directory with `gunicorn wsgi:app`, then set `FRONTEND_URL` on the backend and `VITE_API_URL` on Vercel.
+
 ## Security
 
 - Path traversal protection for extracted archives

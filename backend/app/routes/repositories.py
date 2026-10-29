@@ -11,7 +11,7 @@ from app.analyzers.repo_analyzer import RepoAnalyzer
 bp = Blueprint('repositories', __name__, url_prefix='/api/repositories')
 storage = Storage()
 
-UPLOAD_DIR = './uploads'
+UPLOAD_DIR = os.environ.get('UPLOAD_DIR', './uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @bp.route('', methods=['GET'])
